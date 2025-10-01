@@ -19,8 +19,12 @@ jobs:
       - name: Create default credentials file
         run: |
           cd src/get_token
-          echo '${{ secrets.GOOGLE_OAUTH_CREDENTIALS }}' > default_credentials.json
-        if: secrets.GOOGLE_OAUTH_CREDENTIALS
+          if [ -n "${{ secrets.GOOGLE_OAUTH_CREDENTIALS }}" ]; then
+            echo '${{ secrets.GOOGLE_OAUTH_CREDENTIALS }}' > default_credentials.json
+            echo "✓ Default credentials file created"
+          else
+            echo "⚠ No GOOGLE_OAUTH_CREDENTIALS secret found - skipping"
+          fi
       
       - name: Install dependencies
         run: |
@@ -57,8 +61,12 @@ jobs:
       - name: Create default credentials file
         run: |
           cd src/get_token
-          echo '${{ secrets.GOOGLE_OAUTH_CREDENTIALS }}' > default_credentials.json
-        if: secrets.GOOGLE_OAUTH_CREDENTIALS
+          if [ -n "${{ secrets.GOOGLE_OAUTH_CREDENTIALS }}" ]; then
+            echo '${{ secrets.GOOGLE_OAUTH_CREDENTIALS }}' > default_credentials.json
+            echo "✓ Default credentials file created"
+          else
+            echo "⚠ No GOOGLE_OAUTH_CREDENTIALS secret found - skipping"
+          fi
       
       - name: Build in Docker for ARM64
         run: |
@@ -94,8 +102,12 @@ jobs:
       - name: Create default credentials file
         run: |
           cd src/get_token
-          echo '${{ secrets.GOOGLE_OAUTH_CREDENTIALS }}' > default_credentials.json
-        if: secrets.GOOGLE_OAUTH_CREDENTIALS
+          if [ -n "${{ secrets.GOOGLE_OAUTH_CREDENTIALS }}" ]; then
+            echo '${{ secrets.GOOGLE_OAUTH_CREDENTIALS }}' > default_credentials.json
+            echo "✓ Default credentials file created"
+          else
+            echo "⚠ No GOOGLE_OAUTH_CREDENTIALS secret found - skipping"
+          fi
       
       - name: Install dependencies
         run: |
