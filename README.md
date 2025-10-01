@@ -64,6 +64,9 @@ This model requires a motor component to be configured.
 **Required Attributes:**
 - `motor`: Name of the motor component that controls the wheel
 
+**Optional Attributes:**
+- `reverse_motor`: Set to `true` to reverse motor direction (default: `false`)
+
 **Example Configuration:**
 
 ```json
@@ -72,7 +75,16 @@ This model requires a motor component to be configured.
 }
 ```
 
-The motor should be a standard Viam motor component configured for your wheel hardware.
+**Configuration with reversed motor:**
+
+```json
+{
+  "motor": "wheel_motor",
+  "reverse_motor": true
+}
+```
+
+The motor should be a standard Viam motor component configured for your wheel hardware. Use `reverse_motor` if your motor is wired backwards and moves in the opposite direction.
 
 ### DoCommand
 
@@ -123,27 +135,75 @@ Tests the calendar status detection without moving the motor. Useful for debuggi
 
 **Returns:** Calendar status information (same as turn_wheel but without motor movement)
 
+#### test_wheel
+
+Manually move the wheel to a specific position for testing. This command bypasses calendar checking and is useful for:
+- Testing motor control
+- Verifying wheel positions
+- Debugging motor issues
+- Demonstrating different statuses
+
+**Example Request:**
+
+```json
+{
+  "test_wheel": "WORK_FROM_HOME"
+}
+```
+
+**Valid Status Names:**
+- `IN_MEETING`
+- `GOING_TO_EVENT`
+- `FOCUS_TIME`
+- `OUT_OF_OFFICE`
+- `WORK_FROM_HOME`
+- `AVAILABLE`
+
+**Example Response:**
+
+```json
+{
+  "motor_action": "moved",
+  "old_position": 5,
+  "current_position": 4,
+  "revolutions_moved": -0.1666,
+  "test_mode": true,
+  "target_status": "WORK_FROM_HOME",
+  "target_position": 4
+}
+```
+
+**Error Response (invalid status):**
+
+```json
+{
+  "error": "Invalid status name. Must be one of: IN_MEETING, GOING_TO_EVENT, FOCUS_TIME, OUT_OF_OFFICE, WORK_FROM_HOME, AVAILABLE",
+  "current_position": 5,
+  "valid_statuses": ["IN_MEETING", "GOING_TO_EVENT", "FOCUS_TIME", "OUT_OF_OFFICE", "WORK_FROM_HOME", "AVAILABLE"]
+}
+```
+
 #### turn_wheel
 
 Detects the current calendar status and physically moves the wheel to display the appropriate status.
 
 **Behavior:**
 
-- **On First Call After Reconfiguration**: Performs a full 360° rotation at 15 RPM to reset the wheel to a known position (OUT_OF_OFFICE)
+- **On First Call After Reconfiguration**: Performs a full 360° rotation at 25 RPM to reset the wheel to a known position (OUT_OF_OFFICE)
 - **Subsequent Calls**: Reads calendar status and moves to the appropriate position
-- **Movement**: Uses `go_to` API at 15 RPM to move the motor
+- **Movement**: Uses `go_for` API at 25 RPM for relative motor movements
 - **Position Tracking**: Maintains state of current position to calculate relative movements
 
 **Wheel Positions:**
 
 The wheel has 6 positions, each 1/6 of a full rotation (60°):
 
-1. **IN_MEETING (0)**: Currently in a busy event (transparency = opaque)
-2. **GOING_TO_EVENT (1)**: Busy event starting within the next 5 minutes
-3. **FOCUS_TIME (2)**: Currently in a focus time block
-4. **OUT_OF_OFFICE (3)**: All-day or current out-of-office event
-5. **WORK_FROM_HOME (4)**: All-day or current working location = home
-6. **AVAILABLE (5)**: No other conditions are met
+0. **IN_MEETING (0)**: Currently in a busy event (transparency = opaque)
+1. **AVAILABLE (1)**: No other conditions are met
+2. **FOCUS_TIME (2)**: Currently in a focus time block
+3. **GOING_TO_EVENT (3)**: Busy event starting within the next 5 minutes
+4. **WORK_FROM_HOME (4)**: All-day or current working location = home
+5. **OUT_OF_OFFICE (5)**: All-day or current out-of-office event
 
 **Precedence:** When multiple events overlap, the lowest numbered status takes priority.
 
@@ -155,7 +215,7 @@ The wheel has 6 positions, each 1/6 of a full rotation (60°):
 }
 ```
 
-**Example Response (first call after reconfiguration):**
+**Example Response (moving from OUT_OF_OFFICE to IN_MEETING):**
 
 ```json
 {
@@ -170,9 +230,9 @@ The wheel has 6 positions, each 1/6 of a full rotation (60°):
   },
   "event_type": "default",
   "motor_action": "moved",
-  "old_position": 3,
+  "old_position": 5,
   "current_position": 0,
-  "revolutions_moved": -0.5
+  "revolutions_moved": -0.8333
 }
 ```
 
@@ -180,11 +240,11 @@ The wheel has 6 positions, each 1/6 of a full rotation (60°):
 
 ```json
 {
-  "status": 5,
+  "status": 1,
   "status_name": "AVAILABLE",
   "message": "No events found matching criteria",
   "motor_action": "none",
-  "current_position": 5,
+  "current_position": 1,
   "revolutions_moved": 0
 }
 ```
@@ -192,8 +252,8 @@ The wheel has 6 positions, each 1/6 of a full rotation (60°):
 **How it works:**
 
 1. **Reset Phase (first call after reconfigure)**:
-   - Performs 1 full revolution (360°) at 15 RPM using `go_for`
-   - Sets wheel to OUT_OF_OFFICE position (position 3)
+   - Performs 1 full revolution (360°) at 25 RPM using `go_for`
+   - Sets wheel to OUT_OF_OFFICE position (position 5)
    
 2. **Calendar Check**:
    - Fetches all events for the current day from your primary calendar
@@ -207,7 +267,7 @@ The wheel has 6 positions, each 1/6 of a full rotation (60°):
 
 3. **Motor Movement**:
    - Calculates offset: `(target_position - current_position) / 6` revolutions
-   - Moves motor using `go_to` at 15 RPM
+   - Moves motor using `go_for` at 25 RPM (relative movement)
    - Updates tracked position
    - Example: Moving from FOCUS_TIME (2) to IN_MEETING (0) = -2/6 = -0.333 revolutions
 

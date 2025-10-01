@@ -20,7 +20,7 @@ jobs:
         run: |
           cd src/get_token
           echo '${{ secrets.GOOGLE_OAUTH_CREDENTIALS }}' > default_credentials.json
-        if: secrets.GOOGLE_OAUTH_CREDENTIALS != ''
+        if: ${{ secrets.GOOGLE_OAUTH_CREDENTIALS != '' }}
       
       - name: Install dependencies
         run: |
@@ -58,7 +58,7 @@ jobs:
         run: |
           cd src/get_token
           echo '${{ secrets.GOOGLE_OAUTH_CREDENTIALS }}' > default_credentials.json
-        if: secrets.GOOGLE_OAUTH_CREDENTIALS != ''
+        if: ${{ secrets.GOOGLE_OAUTH_CREDENTIALS != '' }}
       
       - name: Build in Docker for ARM64
         run: |
@@ -95,7 +95,7 @@ jobs:
         run: |
           cd src/get_token
           echo '${{ secrets.GOOGLE_OAUTH_CREDENTIALS }}' > default_credentials.json
-        if: secrets.GOOGLE_OAUTH_CREDENTIALS != ''
+        if: ${{ secrets.GOOGLE_OAUTH_CREDENTIALS != '' }}
       
       - name: Install dependencies
         run: |

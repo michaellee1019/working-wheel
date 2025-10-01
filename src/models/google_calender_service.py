@@ -21,11 +21,11 @@ from googleapiclient.errors import HttpError
 
 # Status constants with precedence order (lower number = higher priority)
 IN_MEETING = 0
-GOING_TO_EVENT = 1
+GOING_TO_EVENT = 3
 FOCUS_TIME = 2
-OUT_OF_OFFICE = 3
 WORK_FROM_HOME = 4
-AVAILABLE = 5
+OUT_OF_OFFICE = 5
+AVAILABLE = 1
 
 
 class GoogleCalenderService(Generic, EasyResource):
@@ -38,6 +38,7 @@ class GoogleCalenderService(Generic, EasyResource):
     motor: Motor
     needs_reset: bool
     current_position: int  # 0-5 corresponding to the 6 wheel positions
+    reverse_motor: bool = False
 
     @classmethod
     def new(
@@ -86,9 +87,10 @@ class GoogleCalenderService(Generic, EasyResource):
             dependencies (Mapping[ResourceName, ResourceBase]): Any dependencies (both required and optional)
         """
         self.motor = dependencies[Motor.get_resource_name(config.attributes["motor"])]
-        
+        if "reverse_motor" in config.attributes:
+            self.reverse_motor = config.attributes["reverse_motor"]
         # On reconfiguration, mark that the wheel needs to be reset
-        # This will trigger a full rotation on the next turn_wheel call
+        # This will trigger a full rotation on the first next turn_wheel call
         self.needs_reset = True
         self.current_position = OUT_OF_OFFICE  # Will be set after reset
         
@@ -107,7 +109,8 @@ class GoogleCalenderService(Generic, EasyResource):
         Supported commands:
         - set_credentials: Store Google OAuth credentials
         - test_calendar_status: Detect calendar status and return appropriate event type
-        - turn_wheel: Turn the wheel to the appropriate position
+        - turn_wheel: Turn the wheel to the appropriate position based on calendar
+        - test_wheel: Manually move wheel to a specific position for testing
         """
         if "set_credentials" in command:
             result = await self.set_credentials(command["set_credentials"])
@@ -119,6 +122,12 @@ class GoogleCalenderService(Generic, EasyResource):
 
         if "turn_wheel" in command:
             result = await self.turn_wheel()
+            return result
+
+        if "test_wheel" in command:
+            # Extract status name from command
+            status_name = command.get("test_wheel")
+            result = await self.test_wheel(status_name=status_name)
             return result
         
         self.logger.error("`do_command` received unknown command")
@@ -359,15 +368,92 @@ class GoogleCalenderService(Generic, EasyResource):
             "message": "No events found matching criteria"
         }
 
+    async def _reset_wheel(self) -> None:
+        """Perform the initial wheel reset by rotating 1 full revolution.
+        
+        This establishes a known position (OUT_OF_OFFICE) after reconfiguration.
+        """
+        if self.reverse_motor:
+            revolutions = -1
+        else:
+            revolutions = 1
+        
+        self.logger.info("Resetting wheel position - performing 1 full revolution at 25 RPM")
+        
+        # Perform 1 full revolution to reset the wheel
+        await self.motor.go_for(rpm=25, revolutions=revolutions)
+        
+        # After reset, set position to OUT_OF_OFFICE
+        self.current_position = OUT_OF_OFFICE
+        self.needs_reset = False
+        
+        self.logger.info("Wheel reset complete - now at OUT_OF_OFFICE position")
+    
+    async def _move_to_position(self, target_position: int, context: dict = None) -> Mapping[str, ValueTypes]:
+        """Move the wheel to a specific position.
+        
+        Args:
+            target_position: Target position (0-5)
+            context: Optional context dictionary to include in response (e.g., calendar status)
+            
+        Returns:
+            dict: Movement information including old/new positions and revolutions moved
+        """
+        try:
+            # Check if already at target position
+            if target_position == self.current_position:
+                self.logger.info(f"Already at position {target_position} - no movement needed")
+                result = {
+                    "motor_action": "none",
+                    "current_position": self.current_position,
+                    "revolutions_moved": 0
+                }
+                if context:
+                    result.update(context)
+                return result
+            
+            # Calculate the offset in 1/6th rotations
+            # Each position is 1/6 of a full rotation (60 degrees)
+            position_offset = target_position - self.current_position
+            revolutions = position_offset / 6.0
+            if self.reverse_motor:
+                revolutions = -revolutions
+            
+            self.logger.info(f"Moving from position {self.current_position} to {target_position}")
+            self.logger.info(f"Movement: {position_offset} positions ({position_offset}/6 = {revolutions} revolutions)")
+            
+            # Move the motor
+            await self.motor.go_for(rpm=25, revolutions=revolutions)
+            
+            # Update current position
+            old_position = self.current_position
+            self.current_position = target_position
+            
+            self.logger.info(f"Wheel movement complete - now at position {self.current_position}")
+            
+            # Return movement info
+            result = {
+                "motor_action": "moved",
+                "old_position": old_position,
+                "current_position": self.current_position,
+                "revolutions_moved": revolutions
+            }
+            if context:
+                result.update(context)
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Error moving to position {target_position}: {e}")
+            raise
+
     async def turn_wheel(self) -> Mapping[str, ValueTypes]:
         """Turn the wheel to the appropriate position based on calendar status.
         
         This method:
         1. Performs a reset (1 full revolution) if needed after reconfiguration
         2. Gets the current calendar status
-        3. Calculates the offset from current to target position
-        4. Moves the motor to the new position
-        5. Returns the calendar status and motor movement info
+        3. Moves the motor to the appropriate position
+        4. Returns the calendar status and motor movement info
         
         Returns:
             dict: Status information including calendar status and motor movement
@@ -375,17 +461,7 @@ class GoogleCalenderService(Generic, EasyResource):
         try:
             # Step 1: Reset wheel if needed (after reconfiguration)
             if self.needs_reset:
-                self.logger.info("Resetting wheel position - performing 1 full revolution at 15 RPM")
-                
-                # Perform 1 full revolution to reset the wheel
-                # go_for(rpm, revolutions, extra) 
-                await self.motor.go_for(rpm=15, revolutions=1)
-                
-                # After reset, set position to OUT_OF_OFFICE
-                self.current_position = OUT_OF_OFFICE
-                self.needs_reset = False
-                
-                self.logger.info("Wheel reset complete - now at OUT_OF_OFFICE position")
+                await self._reset_wheel()
             
             # Step 2: Get calendar status
             calendar_status = await self.get_calendar_status()
@@ -403,48 +479,68 @@ class GoogleCalenderService(Generic, EasyResource):
             
             self.logger.info(f"Calendar status: {status_name} (position {target_position})")
             
-            # Step 4: Calculate movement needed
-            if target_position == self.current_position:
-                self.logger.info(f"Already at position {target_position} - no movement needed")
-                return {
-                    **calendar_status,
-                    "motor_action": "none",
-                    "current_position": self.current_position,
-                    "revolutions_moved": 0
-                }
-            
-            # Calculate the offset in 1/6th rotations
-            # Each position is 1/6 of a full rotation (60 degrees)
-            position_offset = target_position - self.current_position
-            revolutions = position_offset / 6.0
-            
-            self.logger.info(f"Moving from position {self.current_position} to {target_position}")
-            self.logger.info(f"Movement: {revolutions} revolutions ({position_offset}/6)")
-            
-            # Step 5: Move the motor
-            # go_to(rpm, position_revolutions, extra)
-            # The position is relative to current position
-            await self.motor.go_to(rpm=15, position_revolutions=revolutions)
-            
-            # Step 6: Update current position
-            old_position = self.current_position
-            self.current_position = target_position
-            
-            self.logger.info(f"Wheel movement complete - now at position {self.current_position}")
-            
-            # Return complete status
-            return {
-                **calendar_status,
-                "motor_action": "moved",
-                "old_position": old_position,
-                "current_position": self.current_position,
-                "revolutions_moved": revolutions
-            }
+            # Step 4: Move to target position
+            return await self._move_to_position(target_position, context=calendar_status)
             
         except Exception as e:
             self.logger.error(f"Error in turn_wheel: {e}")
             return {
                 "error": f"Motor control error: {e}",
+                "current_position": getattr(self, 'current_position', None)
+            }
+    
+    async def test_wheel(self, status_name: str = None) -> Mapping[str, ValueTypes]:
+        """Manually move the wheel to a specific position for testing.
+        
+        This command bypasses calendar checking and moves directly to the specified position.
+        Useful for testing motor control and verifying wheel positions.
+        
+        Args:
+            status_name: Name of the status position to move to (e.g., "IN_MEETING", "AVAILABLE")
+            
+        Returns:
+            dict: Movement information including target position and revolutions moved
+        """
+        # Status name to position mapping
+        status_map = {
+            "IN_MEETING": IN_MEETING,
+            "GOING_TO_EVENT": GOING_TO_EVENT,
+            "FOCUS_TIME": FOCUS_TIME,
+            "OUT_OF_OFFICE": OUT_OF_OFFICE,
+            "WORK_FROM_HOME": WORK_FROM_HOME,
+            "AVAILABLE": AVAILABLE
+        }
+        
+        try:
+            # Reset wheel if needed
+            if self.needs_reset:
+                await self._reset_wheel()
+            
+            # Validate and get target position
+            if not status_name or status_name not in status_map:
+                return {
+                    "error": f"Invalid status name. Must be one of: {', '.join(status_map.keys())}",
+                    "current_position": self.current_position,
+                    "valid_statuses": list(status_map.keys())
+                }
+            
+            target_position = status_map[status_name]
+            
+            self.logger.info(f"Test mode: Moving to {status_name} (position {target_position})")
+            
+            # Move to target position
+            result = await self._move_to_position(target_position, context={
+                "test_mode": True,
+                "target_status": status_name,
+                "target_position": target_position
+            })
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Error in test_wheel: {e}")
+            return {
+                "error": f"Test wheel error: {e}",
                 "current_position": getattr(self, 'current_position', None)
             }
     
