@@ -43,6 +43,9 @@ pyinstaller \
 
 # Check if build was successful
 if [ -f "dist/get_token" ]; then
+    # Make it executable
+    chmod +x dist/get_token
+    
     echo
     echo "✓ Build successful!"
     echo "Binary location: dist/get_token"

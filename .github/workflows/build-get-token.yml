@@ -54,10 +54,11 @@ jobs:
             $ADD_DATA \
             __main__.py
       
-      - name: Rename binary
+      - name: Rename and set permissions
         run: |
           cd src/get_token/dist
           mv get_token get_token-linux-amd64
+          chmod +x get_token-linux-amd64
       
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -112,7 +113,8 @@ jobs:
                 $ADD_DATA \
                 __main__.py && \
               cd dist && \
-              mv get_token get_token-linux-arm64
+              mv get_token get_token-linux-arm64 && \
+              chmod +x get_token-linux-arm64
             '
       
       - name: Upload artifact
@@ -169,10 +171,11 @@ jobs:
             $ADD_DATA \
             __main__.py
       
-      - name: Rename binary
+      - name: Rename and set permissions
         run: |
           cd src/get_token/dist
           mv get_token get_token-darwin-arm64
+          chmod +x get_token-darwin-arm64
       
       - name: Upload artifact
         uses: actions/upload-artifact@v4
