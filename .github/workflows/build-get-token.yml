@@ -35,7 +35,24 @@ jobs:
       - name: Build with PyInstaller
         run: |
           cd src/get_token
-          pyinstaller get_token.spec
+          # Check if default_credentials.json exists
+          if [ -f "default_credentials.json" ]; then
+            echo "✓ Bundling default_credentials.json"
+            ADD_DATA="--add-data default_credentials.json:."
+          else
+            echo "⚠ No credentials to bundle"
+            ADD_DATA=""
+          fi
+          # Build binary
+          pyinstaller \
+            --onefile \
+            --name get_token \
+            --console \
+            --hidden-import google.auth.transport.requests \
+            --hidden-import google.oauth2.credentials \
+            --hidden-import google_auth_oauthlib.flow \
+            $ADD_DATA \
+            __main__.py
       
       - name: Rename binary
         run: |
@@ -74,14 +91,29 @@ jobs:
             -v ${{ github.workspace }}:/workspace \
             -w /workspace/src/get_token \
             python:3.10-slim \
-            bash -c "
+            bash -c '
               apt-get update && apt-get install -y binutils && \
               pip install -r requirements.txt && \
               pip install pyinstaller && \
-              pyinstaller get_token.spec && \
+              if [ -f "default_credentials.json" ]; then
+                echo "✓ Bundling default_credentials.json"
+                ADD_DATA="--add-data default_credentials.json:."
+              else
+                echo "⚠ No credentials to bundle"
+                ADD_DATA=""
+              fi
+              pyinstaller \
+                --onefile \
+                --name get_token \
+                --console \
+                --hidden-import google.auth.transport.requests \
+                --hidden-import google.oauth2.credentials \
+                --hidden-import google_auth_oauthlib.flow \
+                $ADD_DATA \
+                __main__.py && \
               cd dist && \
               mv get_token get_token-linux-arm64
-            "
+            '
       
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -118,7 +150,24 @@ jobs:
       - name: Build with PyInstaller
         run: |
           cd src/get_token
-          pyinstaller get_token.spec
+          # Check if default_credentials.json exists
+          if [ -f "default_credentials.json" ]; then
+            echo "✓ Bundling default_credentials.json"
+            ADD_DATA="--add-data default_credentials.json:."
+          else
+            echo "⚠ No credentials to bundle"
+            ADD_DATA=""
+          fi
+          # Build binary
+          pyinstaller \
+            --onefile \
+            --name get_token \
+            --console \
+            --hidden-import google.auth.transport.requests \
+            --hidden-import google.oauth2.credentials \
+            --hidden-import google_auth_oauthlib.flow \
+            $ADD_DATA \
+            __main__.py
       
       - name: Rename binary
         run: |

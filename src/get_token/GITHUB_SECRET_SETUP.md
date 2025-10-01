@@ -60,8 +60,10 @@ Open the downloaded `credentials.json` file. It should look like:
 The next time you push a tag (e.g., `1.0.0`), the workflow will:
 
 1. Create `default_credentials.json` from the secret
-2. Build the binary with the credentials bundled inside
+2. Build the binary with PyInstaller, bundling the credentials inside
 3. Users can run the binary without providing their own credentials
+
+**Note:** The PyInstaller spec file is generated dynamically during the build, so you don't need to maintain it in the repository.
 
 ## Usage for End Users
 

@@ -117,16 +117,32 @@ Use this payload with the Viam module's `set_credentials` command.
 
 ```bash
 cd src/get_token
-pip install -r requirements.txt
-pip install pyinstaller
 
 # Optional: Create default_credentials.json to bundle credentials
 # cp your_credentials.json default_credentials.json
 
-pyinstaller get_token.spec
+# Run the build script
+./build.sh
 ```
 
 The binary will be in `dist/get_token`.
+
+**Manual Build:**
+```bash
+pip install -r requirements.txt
+pip install pyinstaller
+
+# Build with PyInstaller
+pyinstaller \
+  --onefile \
+  --name get_token \
+  --console \
+  --hidden-import google.auth.transport.requests \
+  --hidden-import google.oauth2.credentials \
+  --hidden-import google_auth_oauthlib.flow \
+  --add-data default_credentials.json:. \
+  __main__.py
+```
 
 ### Setting Up Bundled Credentials (for Maintainers)
 

@@ -7,8 +7,8 @@ echo "Building get_token binary..."
 echo
 
 # Check if we're in the right directory
-if [ ! -f "get_token.spec" ]; then
-    echo "Error: get_token.spec not found. Run this script from src/get_token/"
+if [ ! -f "__main__.py" ]; then
+    echo "Error: __main__.py not found. Run this script from src/get_token/"
     exit 1
 fi
 
@@ -19,7 +19,27 @@ pip install -q pyinstaller
 
 # Build with PyInstaller
 echo "Building with PyInstaller..."
-pyinstaller get_token.spec
+echo
+
+# Check if default_credentials.json exists to bundle it
+ADD_DATA=""
+if [ -f "default_credentials.json" ]; then
+    echo "✓ Found default_credentials.json - will bundle into binary"
+    ADD_DATA="--add-data default_credentials.json:."
+else
+    echo "⚠ No default_credentials.json found - binary will not have bundled credentials"
+fi
+
+# Run PyInstaller with options
+pyinstaller \
+    --onefile \
+    --name get_token \
+    --console \
+    --hidden-import google.auth.transport.requests \
+    --hidden-import google.oauth2.credentials \
+    --hidden-import google_auth_oauthlib.flow \
+    $ADD_DATA \
+    __main__.py
 
 # Check if build was successful
 if [ -f "dist/get_token" ]; then
