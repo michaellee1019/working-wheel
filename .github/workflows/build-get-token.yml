@@ -1,0 +1,157 @@
+name: Build get_token binaries
+
+on:
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+" # Triggers on tags like 1.0.0 (same as module deployment)
+
+jobs:
+  build-linux-amd64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      
+      - name: Create default credentials file
+        run: |
+          cd src/get_token
+          echo '${{ secrets.GOOGLE_OAUTH_CREDENTIALS }}' > default_credentials.json
+        if: secrets.GOOGLE_OAUTH_CREDENTIALS != ''
+      
+      - name: Install dependencies
+        run: |
+          cd src/get_token
+          pip install -r requirements.txt
+          pip install pyinstaller
+      
+      - name: Build with PyInstaller
+        run: |
+          cd src/get_token
+          pyinstaller get_token.spec
+      
+      - name: Rename binary
+        run: |
+          cd src/get_token/dist
+          mv get_token get_token-linux-amd64
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: get_token-linux-amd64
+          path: src/get_token/dist/get_token-linux-amd64
+
+  build-linux-arm64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+      
+      - name: Create default credentials file
+        run: |
+          cd src/get_token
+          echo '${{ secrets.GOOGLE_OAUTH_CREDENTIALS }}' > default_credentials.json
+        if: secrets.GOOGLE_OAUTH_CREDENTIALS != ''
+      
+      - name: Build in Docker for ARM64
+        run: |
+          docker run --rm --platform linux/arm64 \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace/src/get_token \
+            python:3.10-slim \
+            bash -c "
+              apt-get update && apt-get install -y binutils && \
+              pip install -r requirements.txt && \
+              pip install pyinstaller && \
+              pyinstaller get_token.spec && \
+              cd dist && \
+              mv get_token get_token-linux-arm64
+            "
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: get_token-linux-arm64
+          path: src/get_token/dist/get_token-linux-arm64
+
+  build-darwin-arm64:
+    runs-on: macos-14 # macOS with Apple Silicon
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      
+      - name: Create default credentials file
+        run: |
+          cd src/get_token
+          echo '${{ secrets.GOOGLE_OAUTH_CREDENTIALS }}' > default_credentials.json
+        if: secrets.GOOGLE_OAUTH_CREDENTIALS != ''
+      
+      - name: Install dependencies
+        run: |
+          cd src/get_token
+          pip install -r requirements.txt
+          pip install pyinstaller
+      
+      - name: Build with PyInstaller
+        run: |
+          cd src/get_token
+          pyinstaller get_token.spec
+      
+      - name: Rename binary
+        run: |
+          cd src/get_token/dist
+          mv get_token get_token-darwin-arm64
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: get_token-darwin-arm64
+          path: src/get_token/dist/get_token-darwin-arm64
+
+  create-release:
+    needs: [build-linux-amd64, build-linux-arm64, build-darwin-arm64]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      
+      - name: Add get_token binaries to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/get_token-linux-amd64/get_token-linux-amd64
+            artifacts/get_token-linux-arm64/get_token-linux-arm64
+            artifacts/get_token-darwin-arm64/get_token-darwin-arm64
+          body: |
+            ## get_token Helper Binaries
+            
+            Pre-built binaries for generating Google Calendar OAuth tokens.
+            
+            **Usage:**
+            ```bash
+            chmod +x get_token-<platform>
+            ./get_token-<platform>
+            ```
+            
+            **Platforms:** linux-amd64, linux-arm64, darwin-arm64
+            
+            See [get_token documentation](https://github.com/${{ github.repository }}/tree/${{ github.ref_name }}/src/get_token) for details.
+          append_body: true
+

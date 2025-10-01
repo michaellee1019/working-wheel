@@ -1,0 +1,24 @@
+# PyInstaller build artifacts
+build/
+dist/
+*.spec~
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# Google OAuth credentials (user-specific)
+credentials.json
+token.json
+default_credentials.json  # Generated from secret during build
+
+# Output files
+token_payload.json
+

@@ -1,0 +1,9 @@
+
+viam-sdk==0.56.0
+
+typing-extensions
+
+# Google Calendar API dependencies
+google-auth-httplib2
+google-auth-oauthlib
+google-api-python-client
