@@ -10,10 +10,12 @@ if ! $PYTHON -m pip install pyinstaller -Uqq; then
 fi
 
 # Build with PyInstaller - include all necessary Google API dependencies
-# --noupx: Disable UPX compression to avoid ARM extraction issues
+# --exclude-module: Exclude problematic native modules that fail on ARM
+# Note: If this still fails with extraction errors, add --noupx flag
 $PYTHON -m PyInstaller \
     --onefile \
-    --noupx \
+    --exclude-module charset_normalizer.md \
+    --exclude-module charset_normalizer.md__mypyc \
     --hidden-import="googleapiclient" \
     --hidden-import="google.auth" \
     --hidden-import="google.auth.transport.requests" \
