@@ -1,14 +1,13 @@
 {
   "$schema": "https://dl.viam.dev/module.schema.json",
-  "module_id": "michaellee1019:working-wheel",
-  "visibility": "public_unlisted",
+    "visibility":"public",
+    "description":"A Viam module that integrates Google Calendar to control a physical status wheel based on calendar events.",
+    "module_id": "michaellee1019:working-wheel",
   "url": "https://github.com/michaellee1019/working-wheel",
-  "description": "A Viam module that integrates Google Calendar to control a physical status wheel based on calendar events.",
   "models": [
     {
       "api": "rdk:service:generic",
       "model": "michaellee1019:working-wheel:google-calender-service",
-      "short_description": "Integrates Google Calendar to control a physical status wheel based on calendar events.",
       "markdown_link": "README.md#model-michaellee1019working-wheelgoogle-calender-service"
     }
   ],

@@ -43,11 +43,12 @@ jobs:
             echo "⚠ No credentials to bundle"
             ADD_DATA=""
           fi
-          # Build binary
+          # Build binary (include main.py explicitly)
           pyinstaller \
             --onefile \
             --name get_token \
             --console \
+            --add-data main.py:. \
             --hidden-import google.auth.transport.requests \
             --hidden-import google.oauth2.credentials \
             --hidden-import google_auth_oauthlib.flow \
@@ -107,6 +108,7 @@ jobs:
                 --onefile \
                 --name get_token \
                 --console \
+                --add-data main.py:. \
                 --hidden-import google.auth.transport.requests \
                 --hidden-import google.oauth2.credentials \
                 --hidden-import google_auth_oauthlib.flow \
@@ -160,11 +162,12 @@ jobs:
             echo "⚠ No credentials to bundle"
             ADD_DATA=""
           fi
-          # Build binary
+          # Build binary (include main.py explicitly)
           pyinstaller \
             --onefile \
             --name get_token \
             --console \
+            --add-data main.py:. \
             --hidden-import google.auth.transport.requests \
             --hidden-import google.oauth2.credentials \
             --hidden-import google_auth_oauthlib.flow \
@@ -195,6 +198,14 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts
+      
+      - name: Set executable permissions on binaries
+        run: |
+          chmod +x artifacts/get_token-linux-amd64/get_token-linux-amd64
+          chmod +x artifacts/get_token-linux-arm64/get_token-linux-arm64
+          chmod +x artifacts/get_token-darwin-arm64/get_token-darwin-arm64
+          # Verify permissions
+          ls -la artifacts/*/get_token-*
       
       - name: Add get_token binaries to Release
         uses: softprops/action-gh-release@v1

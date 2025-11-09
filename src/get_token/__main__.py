@@ -1,23 +1,25 @@
 #!/usr/bin/env python3
 """Entry point for the get_token package."""
 
-# Use absolute import for PyInstaller compatibility
 import sys
 import os
 
-# Add the package directory to the path
+# When running as a package from command line (python -m get_token)
+if __name__ == '__main__' and __package__ is None:
+    # Add parent directory to path to enable relative imports
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    __package__ = 'get_token'
+
+# Use relative import when running as package, absolute when frozen
 if getattr(sys, 'frozen', False):
-    # Running as compiled executable
-    bundle_dir = sys._MEIPASS
+    # Running as PyInstaller executable - main.py is in the same bundle
+    # Import directly from the bundled main module
+    import main as main_module
+    main_func = main_module.main
 else:
-    # Running as script
-    bundle_dir = os.path.dirname(os.path.abspath(__file__))
-
-sys.path.insert(0, bundle_dir)
-
-# Now import main directly
-from main import main
+    # Running as script or package
+    from .main import main as main_func
 
 if __name__ == '__main__':
-    main()
+    main_func()
 

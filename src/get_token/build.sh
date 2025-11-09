@@ -31,10 +31,12 @@ else
 fi
 
 # Run PyInstaller with options
+# Note: We add main.py explicitly to ensure it's bundled
 pyinstaller \
     --onefile \
     --name get_token \
     --console \
+    --add-data main.py:. \
     --hidden-import google.auth.transport.requests \
     --hidden-import google.oauth2.credentials \
     --hidden-import google_auth_oauthlib.flow \
