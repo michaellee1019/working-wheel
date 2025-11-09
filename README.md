@@ -18,44 +18,30 @@ Before using this module, you need to set up Google Calendar API credentials:
 
 ### Getting OAuth Token
 
-#### Option 1: Use Pre-built Binary (Recommended)
+#### Option 1: Use Pre-built Binary And (Recommended)
 
 Download the `get_token` binary for your platform from the [releases page](https://github.com/michaellee1019/working-wheel/releases) (included with each module release):
 
+This program will get a refresh token that is used to poll your Google Calendar periodically to check on upcoming and current events. You have two options when running the program:
+
+The command below will use the builtin supplied OAuth application. Since you are running the application on your computer, there is no token given to external services hosted elsewhere. The application is redirected to a http://localhost so your token is not sent elsewhere.
+
+If you would rather use your own OAuth application or run the program from source code, you can follow the [https://github.com/michaellee1019/working-wheel/tree/main/src/get_token](detailed readme) for the `get_token` application.
+
+
 ```bash
-# Download the appropriate binary for your platform
-# Available: get_token-linux-amd64, get_token-linux-arm64, get_token-darwin-arm64
+# Download the appropriate binary for the platform deployed on your Raspberry Pi
+get_token-linux-amd64, get_token-linux-arm64, get_token-darwin-arm64
 
 # Make it executable
 chmod +x get_token-<your-platform>
 
-# Run it - may include bundled OAuth credentials, or provide your own
+# Run it with the included bundled OAuth Application
+# Note that no traffic leaves 
 ./get_token-<your-platform>
 
-# To use your own credentials instead:
-./get_token-<your-platform> --credentials /path/to/your/credentials.json
+json
 ```
-
-#### Option 2: Run from Source
-
-```bash
-# Install helper dependencies
-pip install -r requirements-helper.txt
-
-# Run the token generator script
-python get_token.py
-
-# Or run the package directly
-python -m get_token
-```
-
-The tool will:
-1. Open a browser for Google OAuth authentication
-2. Generate the token payload
-3. Print the `do_command` payload to console
-4. Copy it to your clipboard
-
-See [get_token documentation](src/get_token/README.md) for more details.
 
 ### Configuration
 
@@ -85,6 +71,8 @@ This model requires a motor component to be configured.
 ```
 
 The motor should be a standard Viam motor component configured for your wheel hardware. Use `reverse_motor` if your motor is wired backwards and moves in the opposite direction.
+
+The provided STEP files for this project use a [https://app.viam.com/module/viam/uln2003](28byj-48 stepper motor).
 
 ### DoCommand
 
@@ -119,7 +107,7 @@ Stores Google OAuth credentials for accessing the Calendar API.
 }
 ```
 
-**Note:** Use the `get_token.py` script to generate the exact payload format. The credentials are stored in `$VIAM_MODULE_DATA/token.json` for persistent access.
+**Note:** Use the `get_token.py` script to generate the exact payload format. The credentials are stored in `$VIAM_MODULE_DATA/token.json` for persistent access. They are not stored in the cloud by Viam or in your robot's configuration, so only those with physical access or login to the Raspberry Pi can read the token.
 
 #### test_calendar_status
 
@@ -189,9 +177,9 @@ Detects the current calendar status and physically moves the wheel to display th
 
 **Behavior:**
 
-- **On First Call After Reconfiguration**: Performs a full 360° rotation at 25 RPM to reset the wheel to a known position (OUT_OF_OFFICE)
+- **On First Call After Reconfiguration**: Performs a full 360° rotation at 15 RPM to reset the wheel to a known position (OUT_OF_OFFICE)
 - **Subsequent Calls**: Reads calendar status and moves to the appropriate position
-- **Movement**: Uses `go_for` API at 25 RPM for relative motor movements
+- **Movement**: Uses `go_for` API at 15 RPM for relative motor movements
 - **Position Tracking**: Maintains state of current position to calculate relative movements
 
 **Wheel Positions:**
@@ -249,10 +237,10 @@ The wheel has 6 positions, each 1/6 of a full rotation (60°):
 }
 ```
 
-**How it works:**
+## How it works
 
 1. **Reset Phase (first call after reconfigure)**:
-   - Performs 1 full revolution (360°) at 25 RPM using `go_for`
+   - Performs 1 full revolution (360°) at 15 RPM using `go_for`
    - Sets wheel to OUT_OF_OFFICE position (position 5)
    
 2. **Calendar Check**:
@@ -267,11 +255,11 @@ The wheel has 6 positions, each 1/6 of a full rotation (60°):
 
 3. **Motor Movement**:
    - Calculates offset: `(target_position - current_position) / 6` revolutions
-   - Moves motor using `go_for` at 25 RPM (relative movement)
+   - Moves motor using `go_for` at 15 RPM (relative movement)
    - Updates tracked position
    - Example: Moving from FOCUS_TIME (2) to IN_MEETING (0) = -2/6 = -0.333 revolutions
 
-### Testing
+### Development
 
 You can test the `turn_wheel` functionality locally before deploying the module:
 
@@ -288,3 +276,6 @@ The test script will:
 - Fetch your calendar events
 - Display the detected status and event details
 - Show debug information about the detection process
+
+### Improvements
+If you would like to see a change to this project please open a GitHub issue. I also accept pull requests but I recommend reaching out first with ideas and improvements. Thanks!

@@ -378,10 +378,10 @@ class GoogleCalenderService(Generic, EasyResource):
         else:
             revolutions = 1
         
-        self.logger.info("Resetting wheel position - performing 1 full revolution at 25 RPM")
+        self.logger.info("Resetting wheel position - performing 1 full revolution at 15 RPM")
         
         # Perform 1 full revolution to reset the wheel
-        await self.motor.go_for(rpm=25, revolutions=revolutions)
+        await self.motor.go_for(rpm=15, revolutions=revolutions)
         
         # After reset, set position to OUT_OF_OFFICE
         self.current_position = OUT_OF_OFFICE
@@ -423,7 +423,7 @@ class GoogleCalenderService(Generic, EasyResource):
             self.logger.info(f"Movement: {position_offset} positions ({position_offset}/6 = {revolutions} revolutions)")
             
             # Move the motor
-            await self.motor.go_for(rpm=25, revolutions=revolutions)
+            await self.motor.go_for(rpm=15, revolutions=revolutions)
             
             # Update current position
             old_position = self.current_position
