@@ -43,12 +43,12 @@ jobs:
             echo "⚠ No credentials to bundle"
             ADD_DATA=""
           fi
-          # Build binary (include main.py explicitly)
+          # Build binary
           pyinstaller \
             --onefile \
             --name get_token \
             --console \
-            --add-data main.py:. \
+            --add-data get_token_main.py:. \
             --hidden-import google.auth.transport.requests \
             --hidden-import google.oauth2.credentials \
             --hidden-import google_auth_oauthlib.flow \
@@ -108,7 +108,7 @@ jobs:
                 --onefile \
                 --name get_token \
                 --console \
-                --add-data main.py:. \
+                --add-data get_token_main.py:. \
                 --hidden-import google.auth.transport.requests \
                 --hidden-import google.oauth2.credentials \
                 --hidden-import google_auth_oauthlib.flow \
@@ -162,12 +162,12 @@ jobs:
             echo "⚠ No credentials to bundle"
             ADD_DATA=""
           fi
-          # Build binary (include main.py explicitly)
+          # Build binary
           pyinstaller \
             --onefile \
             --name get_token \
             --console \
-            --add-data main.py:. \
+            --add-data get_token_main.py:. \
             --hidden-import google.auth.transport.requests \
             --hidden-import google.oauth2.credentials \
             --hidden-import google_auth_oauthlib.flow \

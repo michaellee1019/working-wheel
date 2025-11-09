@@ -10,15 +10,14 @@ if __name__ == '__main__' and __package__ is None:
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     __package__ = 'get_token'
 
-# Use relative import when running as package, absolute when frozen
+# Import the main function
 if getattr(sys, 'frozen', False):
-    # Running as PyInstaller executable - main.py is in the same bundle
-    # Import directly from the bundled main module
-    import main as main_module
-    main_func = main_module.main
+    # Running as PyInstaller executable
+    import get_token_main
+    main_func = get_token_main.main
 else:
     # Running as script or package
-    from .main import main as main_func
+    from .get_token_main import main as main_func
 
 if __name__ == '__main__':
     main_func()

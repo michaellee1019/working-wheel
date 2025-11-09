@@ -10,8 +10,10 @@ if ! $PYTHON -m pip install pyinstaller -Uqq; then
 fi
 
 # Build with PyInstaller - include all necessary Google API dependencies
+# --noupx: Disable UPX compression to avoid ARM extraction issues
 $PYTHON -m PyInstaller \
     --onefile \
+    --noupx \
     --hidden-import="googleapiclient" \
     --hidden-import="google.auth" \
     --hidden-import="google.auth.transport.requests" \
