@@ -184,7 +184,7 @@ Detects the current calendar status and physically moves the wheel to display th
 
 **Wheel Positions:**
 
-The wheel has 6 positions, each 1/6 of a full rotation (60°):
+The wheel has 6 physical positions, each 1/6 of a full rotation (60°):
 
 0. **IN_MEETING (0)**: Currently in a busy event (transparency = opaque, not a special event type)
 1. **AVAILABLE (1)**: No other conditions are met
@@ -193,7 +193,18 @@ The wheel has 6 positions, each 1/6 of a full rotation (60°):
 4. **WORK_FROM_HOME (4)**: All-day or current working location = home (special working location)
 5. **OUT_OF_OFFICE (5)**: All-day or current out-of-office event (special event type)
 
-**Precedence:** Special Google Calendar event types (`outOfOffice`, `focusTime`) and working locations (`homeOffice`) are detected first and take priority over generic busy events. When multiple regular events overlap, the lowest numbered status takes priority.
+**Precedence (when multiple events overlap):**
+
+When multiple events are happening simultaneously, the wheel displays the highest priority status:
+
+1. **OUT_OF_OFFICE** - Highest priority
+2. **IN_MEETING**
+3. **FOCUS_TIME**
+4. **GOING_TO_EVENT**
+5. **WORK_FROM_HOME**
+6. **AVAILABLE** - Lowest priority
+
+**Precedence:** When multiple events overlap, the one with the lowest position number (highest priority) is displayed. OUT_OF_OFFICE (0) takes precedence over everything, followed by IN_MEETING (1), then FOCUS_TIME (2), etc. Special Google Calendar event types (`outOfOffice`, `focusTime`) and working locations (`homeOffice`) are checked before generic busy events to properly determine their status.
 
 **Example Request:**
 

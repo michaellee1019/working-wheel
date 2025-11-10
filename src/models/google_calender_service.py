@@ -19,13 +19,24 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 
-# Status constants with precedence order (lower number = higher priority)
+# Status constants representing physical wheel positions (cannot be changed without hardware modification)
 IN_MEETING = 0
-GOING_TO_EVENT = 3
+AVAILABLE = 1
 FOCUS_TIME = 2
+GOING_TO_EVENT = 3
 WORK_FROM_HOME = 4
 OUT_OF_OFFICE = 5
-AVAILABLE = 1
+
+# Precedence order (lower number = higher priority) - separate from physical positions
+# When multiple events overlap, this determines which status is shown
+STATUS_PRECEDENCE = {
+    OUT_OF_OFFICE: 0,      # Highest priority
+    IN_MEETING: 1,
+    FOCUS_TIME: 2,
+    GOING_TO_EVENT: 3,
+    WORK_FROM_HOME: 4,
+    AVAILABLE: 5           # Lowest priority
+}
 
 
 class GoogleCalenderService(Generic, EasyResource):
@@ -184,17 +195,25 @@ class GoogleCalenderService(Generic, EasyResource):
     async def get_calendar_status(self) -> Mapping[str, ValueTypes]:
         """Detect the current calendar status and return the appropriate event type.
         
-        Special event types (outOfOffice, focusTime, workingLocation) are checked first
-        and take precedence over generic busy events. When multiple events are detected,
-        the one with the lowest status code wins.
+        Special event types (outOfOffice, focusTime, workingLocation) are checked before
+        generic busy events. When multiple events are detected, precedence is determined
+        by STATUS_PRECEDENCE (not by physical position number).
         
-        Status codes:
+        Physical wheel positions (cannot be changed without hardware modification):
         0. IN_MEETING - Currently in a busy event (generic, not a special type)
         1. AVAILABLE - No matching events
         2. FOCUS_TIME - Currently in a focus time block (special event type)
         3. GOING_TO_EVENT - Busy event starting in next 5 minutes (generic)
         4. WORK_FROM_HOME - Working from home location (special working location)
         5. OUT_OF_OFFICE - Out of office event (special event type)
+        
+        Priority order (when multiple events overlap):
+        1. OUT_OF_OFFICE (highest priority)
+        2. IN_MEETING
+        3. FOCUS_TIME
+        4. GOING_TO_EVENT
+        5. WORK_FROM_HOME
+        6. AVAILABLE (lowest priority)
         
         Returns:
             dict: Status information including status code, name, and event details
@@ -365,8 +384,8 @@ class GoogleCalenderService(Generic, EasyResource):
         
         # Return the highest precedence status found
         if found_statuses:
-            # Sort by status code (lower number = higher precedence)
-            found_statuses.sort(key=lambda x: x[0])
+            # Sort by precedence (lower precedence number = higher priority)
+            found_statuses.sort(key=lambda x: STATUS_PRECEDENCE[x[0]])
             status_code, event = found_statuses[0]
             
             return {
