@@ -294,6 +294,8 @@ class GoogleCalenderService(Generic, EasyResource):
                 # All-day events apply to the whole day
                 event_start = datetime.datetime.strptime(start['date'], '%Y-%m-%d')
                 event_end = datetime.datetime.strptime(end['date'], '%Y-%m-%d')
+                # For comparison with all-day events, get today's date (without time)
+                today = datetime.datetime(now.year, now.month, now.day)
             else:
                 # Timed events
                 start_str = start.get('dateTime', '')
@@ -346,16 +348,18 @@ class GoogleCalenderService(Generic, EasyResource):
                     self.logger.debug(f"Found GOING_TO_EVENT event: {event.get('summary', 'No title')}")
             
             # Check OUT_OF_OFFICE for all-day events (timed events handled above)
+            # For all-day events, end date is exclusive (event from 11/10 to 11/11 only applies on 11/10)
             if is_all_day and event_type == 'outOfOffice':
-                found_statuses.append((OUT_OF_OFFICE, event))
-                self.logger.debug(f"Found OUT_OF_OFFICE all-day event: {event.get('summary', 'No title')}")
+                if event_start <= today < event_end:
+                    found_statuses.append((OUT_OF_OFFICE, event))
+                    self.logger.debug(f"Found OUT_OF_OFFICE all-day event: {event.get('summary', 'No title')}")
             
             # Check WORK_FROM_HOME for all-day events (timed events handled above)
             if is_all_day:
                 working_location = event.get('workingLocationProperties', {})
                 if working_location:
                     location_type = working_location.get('type', '')
-                    if location_type == 'homeOffice':
+                    if location_type == 'homeOffice' and event_start <= today < event_end:
                         found_statuses.append((WORK_FROM_HOME, event))
                         self.logger.debug(f"Found WORK_FROM_HOME all-day event: {event.get('summary', 'No title')}")
         
