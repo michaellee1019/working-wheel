@@ -184,13 +184,17 @@ class GoogleCalenderService(Generic, EasyResource):
     async def get_calendar_status(self) -> Mapping[str, ValueTypes]:
         """Detect the current calendar status and return the appropriate event type.
         
-        Status precedence (highest to lowest) for overlapping events:
-        1. IN_MEETING - Currently in a busy event
-        2. GOING_TO_EVENT - Busy event starting in next 5 minutes
-        3. FOCUS_TIME - Currently in a focus time block
-        4. OUT_OF_OFFICE - All-day or current out of office event
-        5. WORK_FROM_HOME - All-day or current working from home event
-        6. AVAILABLE - No other conditions met
+        Special event types (outOfOffice, focusTime, workingLocation) are checked first
+        and take precedence over generic busy events. When multiple events are detected,
+        the one with the lowest status code wins.
+        
+        Status codes:
+        0. IN_MEETING - Currently in a busy event (generic, not a special type)
+        1. AVAILABLE - No matching events
+        2. FOCUS_TIME - Currently in a focus time block (special event type)
+        3. GOING_TO_EVENT - Busy event starting in next 5 minutes (generic)
+        4. WORK_FROM_HOME - Working from home location (special working location)
+        5. OUT_OF_OFFICE - Out of office event (special event type)
         
         Returns:
             dict: Status information including status code, name, and event details
@@ -314,12 +318,20 @@ class GoogleCalenderService(Generic, EasyResource):
             # For timed events, check time-based conditions
             if not is_all_day:
                 # Check for special event types FIRST (before generic busy check)
-                # This prevents focusTime events from being classified as IN_MEETING
+                # This prevents special events from being classified as generic IN_MEETING
                 
+                # Check OUT_OF_OFFICE (currently in an out of office event)
+                if event_type == 'outOfOffice' and event_start <= now_aware <= event_end:
+                    found_statuses.append((OUT_OF_OFFICE, event))
+                    self.logger.debug(f"Found OUT_OF_OFFICE event: {event.get('summary', 'No title')}")
                 # Check FOCUS_TIME (currently in focus time)
-                if event_type == 'focusTime' and event_start <= now_aware <= event_end:
+                elif event_type == 'focusTime' and event_start <= now_aware <= event_end:
                     found_statuses.append((FOCUS_TIME, event))
                     self.logger.debug(f"Found FOCUS_TIME event: {event.get('summary', 'No title')}")
+                # Check WORK_FROM_HOME (currently working from home)
+                elif event.get('workingLocationProperties', {}).get('type') == 'homeOffice' and event_start <= now_aware <= event_end:
+                    found_statuses.append((WORK_FROM_HOME, event))
+                    self.logger.debug(f"Found WORK_FROM_HOME event: {event.get('summary', 'No title')}")
                 # Check IN_MEETING (currently in a busy event, but not a special type)
                 elif transparency == 'opaque' and event_start <= now_aware <= event_end:
                     found_statuses.append((IN_MEETING, event))
@@ -327,24 +339,25 @@ class GoogleCalenderService(Generic, EasyResource):
                 
                 # Check GOING_TO_EVENT (busy event in next 5 minutes, not a special type)
                 time_until_event = (event_start - now_aware).total_seconds()
-                if event_type != 'focusTime' and transparency == 'opaque' and 0 < time_until_event <= 300:  # 300 seconds = 5 minutes
+                special_types = ['focusTime', 'outOfOffice']
+                has_working_location = bool(event.get('workingLocationProperties'))
+                if event_type not in special_types and not has_working_location and transparency == 'opaque' and 0 < time_until_event <= 300:  # 300 seconds = 5 minutes
                     found_statuses.append((GOING_TO_EVENT, event))
                     self.logger.debug(f"Found GOING_TO_EVENT event: {event.get('summary', 'No title')}")
             
-            # Check 4: OUT_OF_OFFICE (all-day or current time block)
-            if event_type == 'outOfOffice':
-                if is_all_day or (event_start <= now_aware <= event_end):
-                    found_statuses.append((OUT_OF_OFFICE, event))
-                    self.logger.debug(f"Found OUT_OF_OFFICE event: {event.get('summary', 'No title')}")
+            # Check OUT_OF_OFFICE for all-day events (timed events handled above)
+            if is_all_day and event_type == 'outOfOffice':
+                found_statuses.append((OUT_OF_OFFICE, event))
+                self.logger.debug(f"Found OUT_OF_OFFICE all-day event: {event.get('summary', 'No title')}")
             
-            # Check 5: WORK_FROM_HOME (all-day or current time block)
-            working_location = event.get('workingLocationProperties', {})
-            if working_location:
-                location_type = working_location.get('type', '')
-                if location_type == 'homeOffice':
-                    if is_all_day or (event_start <= now_aware <= event_end):
+            # Check WORK_FROM_HOME for all-day events (timed events handled above)
+            if is_all_day:
+                working_location = event.get('workingLocationProperties', {})
+                if working_location:
+                    location_type = working_location.get('type', '')
+                    if location_type == 'homeOffice':
                         found_statuses.append((WORK_FROM_HOME, event))
-                        self.logger.debug(f"Found WORK_FROM_HOME event: {event.get('summary', 'No title')}")
+                        self.logger.debug(f"Found WORK_FROM_HOME all-day event: {event.get('summary', 'No title')}")
         
         # Return the highest precedence status found
         if found_statuses:
